@@ -33,7 +33,7 @@ def load_data():
     """Carga el dataset de Netflix desde el repositorio."""
     try:
         # Intenta cargar el archivo. Asegúrate de que se llame exactamente así en GitHub
-        df = pd.read_csv("urils/netflix_titles.csv")
+        df = pd.read_csv("utils/netflix_titles.csv")
         return df
     except FileNotFoundError:
         st.error("❌ Archivo 'netflix_titles.csv' no encontrado en el repositorio.")
