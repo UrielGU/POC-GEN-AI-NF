@@ -44,8 +44,8 @@ def load_data():
 df_netflix = load_data()
 
 # --- 4. TÍTULO Y MÉTRICAS DE INTELIGENCIA ---
-st.title("🎬 Netflix Content Intelligence Agent")
-st.subheader("Análisis y Consultas Avanzadas sobre el Catálogo Global")
+st.title("🎬 POC: Netflix Content Agent AI")
+st.subheader("Análisis y Consultas Avanzadas sobre el Catálogo Global de Netflix")
 
 if not df_netflix.empty:
     # Fila de métricas para un look profesional
