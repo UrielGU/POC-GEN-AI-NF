@@ -5,7 +5,7 @@ import plotly.express as px
 import re
 import os
 
-# --- 1. CONFIGURACIÓN DE PÁGINA ESTILO FACHERO) ---
+# --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Netflix Intelligence Agent", page_icon="🎬", layout="wide")
 
 # CSS
@@ -48,7 +48,7 @@ st.title("🎬 POC: Netflix Content Agent AI")
 st.subheader("Análisis y Consultas Avanzadas sobre el Catálogo Global de Netflix")
 
 if not df_netflix.empty:
-    # Fila de métricas para un look profesional
+    # Fila de métricas
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Total Títulos", f"{len(df_netflix):,}")
     m2.metric("Películas", f"{len(df_netflix[df_netflix['type'] == 'Movie']):,}")
@@ -56,10 +56,9 @@ if not df_netflix.empty:
     m4.metric("Países Productores", f"{df_netflix['country'].nunique():,}")
     st.divider()
 
-# --- 5. LÓGICA DEL AGENTE Y CHAT ---
+# --- 5. CHAT ---
 if api_key and not df_netflix.empty:
     genai.configure(api_key=api_key)
-    # Usamos Gemini 2.5 Flash, que es excelente para análisis de datos y extracción de entidades
     model = genai.GenerativeModel('models/gemini-2.5-flash')
 
     # Inicializar historial de chat
@@ -69,12 +68,9 @@ if api_key and not df_netflix.empty:
     # Layout de dos columnas: Chat y Visualización
     col_chat, col_viz = st.columns([2, 1])
 
-    # --- 5. LÓGICA DEL AGENTE MEJORADA ---
+    # --- 5. LÓGICA DEL AGENTE ---
     with col_chat:
-        # ... (historial y chat_input igual) ...
-
         if prompt := st.chat_input("Escribe tu pregunta..."):
-            # ... (guardar mensaje igual) ...
 
             with st.chat_message("assistant"):
                 with st.spinner("Consultando inteligencia de contenido..."):
@@ -103,7 +99,7 @@ if api_key and not df_netflix.empty:
 
                         # LÓGICA DE ACCIÓN DINÁMICA
                         if "ACCION: BUSCAR" in res_text:
-                            # Extraer datos de forma segura (sin que truene si falta uno)
+                            # Extraer datos
                             qty = int(re.search(r'CANTIDAD: (\d+)', res_text).group(1)) if re.search(r'CANTIDAD: (\d+)', res_text) else 5
                             country = re.search(r'PAIS: \[(.*?)\]', res_text).group(1) if "PAIS: [None]" not in res_text else None
                             
@@ -128,13 +124,12 @@ if api_key and not df_netflix.empty:
                             full_answer = res_text
 
                     except Exception as e:
-                        # Si algo falla, que Gemini responda normal para no dejar al usuario colgado
                         backup_res = model.generate_content(prompt)
                         full_answer = backup_res.text
 
                     st.markdown(full_answer)
                     st.session_state.netflix_messages.append({"role": "assistant", "content": full_answer})
-    # Columnas de Visualización de Datos (El toque "Fachero" y Profesional)
+    # Columnas de Visualización de Datos
     with col_viz:
         st.markdown("#### 📊 Insights Rápidos")
         
