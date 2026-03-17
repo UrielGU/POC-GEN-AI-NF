@@ -4,10 +4,10 @@ import pandas as pd
 import re
 import os
 
-# --- 1. CONFIGURACIÓN DE PÁGINA Y ESTILO (FACHERO) ---
+# --- 1. CONFIGURACIÓN DE PÁGINA ESTILO FACHERO) ---
 st.set_page_config(page_title="Netflix Intelligence Agent", page_icon="🎬", layout="wide")
 
-# CSS personalizado para tarjetas sutiles y diseño limpio
+# CSS
 st.markdown("""
     <style>
     .main { background-color: #f9f9f9; }
@@ -17,8 +17,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. GESTIÓN DE SECRETOS / API KEY ---
-# Prioridad: st.secrets (Streamlit Cloud) -> Sidebar (Manual)
+# --- 2. API KEY ---
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"]
 else:
@@ -32,12 +31,11 @@ else:
 def load_data():
     """Carga el dataset de Netflix desde el repositorio."""
     try:
-        # Intenta cargar el archivo. Asegúrate de que se llame exactamente así en GitHub
         df = pd.read_csv("utils/netflix_titles.csv")
         return df
     except FileNotFoundError:
         st.error("❌ Archivo 'netflix_titles.csv' no encontrado en el repositorio.")
-        return pd.DataFrame() # Retorna un DataFrame vacío si falla
+        return pd.DataFrame()
 
 df_netflix = load_data()
 
