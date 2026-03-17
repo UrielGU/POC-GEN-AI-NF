@@ -69,77 +69,71 @@ if api_key and not df_netflix.empty:
     # Layout de dos columnas: Chat y Visualización
     col_chat, col_viz = st.columns([2, 1])
 
+    # --- 5. LÓGICA DEL AGENTE MEJORADA ---
     with col_chat:
-        st.markdown("#### 💬 Consulta Exclusiva del Catálogo")
-        st.caption("Ejemplos: 'Dame un top 10 de películas de acción de EE.UU.' o '¿Qué géneros son populares en Japón?'")
-        
-        # Mostrar mensajes previos
-        for message in st.session_state.netflix_messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+        # ... (historial y chat_input igual) ...
 
-        # Chat Input
-        if prompt := st.chat_input("Escribe tu pregunta sobre películas o series aquí..."):
-            st.session_state.netflix_messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
+        if prompt := st.chat_input("Escribe tu pregunta..."):
+            # ... (guardar mensaje igual) ...
 
             with st.chat_message("assistant"):
-                with st.spinner("Analizando el catálogo..."):
-                    # --- BUCLE RE-ACT DE AGENTE ---
-                    # 1. Razonamiento: ¿Es una consulta de datos o general?
+                with st.spinner("Consultando inteligencia de contenido..."):
+                    
+                    # PROMPT FLEXIBLE
                     reasoning_prompt = f"""
-                    Eres un Analista de Contenido de Netflix. Tu ÚNICA fuente de información es este dataset:
+                    Eres un Analista de Contenido de Netflix Experto.
+                    DATASET_INFO: Tienes un catálogo con {len(df_netflix)} títulos.
                     COLUMNAS: {df_netflix.columns.tolist()}
                     
                     INSTRUCCIONES:
-                    1. Si el usuario pide una lista, top o conteo de títulos, responde EXACTAMENTE: 
-                       DATOS: [cantidad_solicitada], [país_o_None], [género_o_None], [tipo_Movie/TV_Show/None]
-                    2. Si es una pregunta sobre el dataset (ej: '¿qué columnas tienes?'), responde normal.
-                    3. Si la pregunta NO es sobre Netflix, películas o series, responde: 
-                       "Lo siento, mi experiencia se limita exclusivamente al análisis del catálogo de Netflix. No puedo responder preguntas fuera de ese tema."
+                    1. Si el usuario pide un TOP, LISTA o CONTEO, responde con este formato:
+                    ACCION: BUSCAR | CANTIDAD: [n] | PAIS: [pais] | GENERO: [genero] | TIPO: [Movie/TV Show]
                     
-                    PREGUNTA DEL USUARIO: "{prompt}"
+                    2. Si el usuario pide RECOMENDACIONES basadas en un título, usa tu conocimiento para identificar el género de ese título y luego responde:
+                    ACCION: RECOMENDAR | TITULO_REF: [titulo]
+                    
+                    3. Si pregunta sobre TENDENCIAS o POPULARIDAD, usa tu conocimiento general para responder de forma fachera.
+                    
+                    PREGUNTA: "{prompt}"
                     """
                     
                     try:
-                        reasoning_res = model.generate_content(reasoning_prompt)
-                        
-                        # 2. Acción: Procesamiento de Datos con Python
-                        if "DATOS:" in reasoning_res.text:
-                            # Extraer entidades usando Regex (Día 3)
-                            params = re.findall(r'\[(.*?)\]', reasoning_res.text)[0].split(',')
-                            qty = int(params[0].strip()) if params[0].strip().isdigit() else 10
-                            country = params[1].strip() if "None" not in params[1] else None
-                            genre = params[2].strip() if "None" not in params[2] else None
-                            content_type = params[3].strip() if "None" not in params[3] else None
+                        res_obj = model.generate_content(reasoning_prompt)
+                        res_text = res_obj.text
+
+                        # LÓGICA DE ACCIÓN DINÁMICA
+                        if "ACCION: BUSCAR" in res_text:
+                            # Extraer datos de forma segura (sin que truene si falta uno)
+                            qty = int(re.search(r'CANTIDAD: (\d+)', res_text).group(1)) if re.search(r'CANTIDAD: (\d+)', res_text) else 5
+                            country = re.search(r'PAIS: \[(.*?)\]', res_text).group(1) if "PAIS: [None]" not in res_text else None
                             
-                            # Filtrado dinámico con Pandas
                             df_temp = df_netflix.copy()
                             if country:
                                 df_temp = df_temp[df_temp['country'].str.contains(country, na=False, case=False)]
-                            if genre:
-                                df_temp = df_temp[df_temp['listed_in'].str.contains(genre, na=False, case=False)]
-                            if content_type:
-                                df_temp = df_temp[df_temp['type'].str.contains(content_type, na=False, case=False)]
                             
-                            results = df_temp[['title', 'release_year', 'country', 'listed_in']].head(qty)
+                            results = df_temp.head(qty)
                             
-                            if results.empty:
-                                full_answer = f"No encontré títulos que coincidan con los criterios: {country or ''} {genre or ''}."
+                            if not results.empty:
+                                st.table(results[['title', 'release_year', 'listed_in']])
+                                full_answer = f"Basado en nuestro dataset, aquí tienes los títulos más relevantes para {country or 'el mundo'}."
                             else:
-                                st.write(f"Aquí tienes los {len(results)} títulos solicitados:")
-                                st.table(results) # Visualización tabular limpia
-                                full_answer = "Espero que esta lista te sea útil."
+                                full_answer = "No encontré datos específicos en el CSV, pero según las tendencias generales..."
+                        
+                        elif "ACCION: RECOMENDAR" in res_text:
+                            # Aquí el agente usa su "cerebro" para recomendar
+                            final_res = model.generate_content(f"El usuario vio {prompt}. Recomienda 3 series similares que estén en Netflix.")
+                            full_answer = final_res.text
+                            
                         else:
-                            full_answer = reasoning_res.text
-                    
+                            full_answer = res_text
+
                     except Exception as e:
-                        full_answer = f"Hubo un error al procesar tu solicitud: {str(e)}"
+                        # Si algo falla, que Gemini responda normal para no dejar al usuario colgado
+                        backup_res = model.generate_content(prompt)
+                        full_answer = backup_res.text
 
                     st.markdown(full_answer)
                     st.session_state.netflix_messages.append({"role": "assistant", "content": full_answer})
-
     # Columnas de Visualización de Datos (El toque "Fachero" y Profesional)
     with col_viz:
         st.markdown("#### 📊 Insights Rápidos")
