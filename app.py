@@ -29,12 +29,15 @@ else:
 # --- 3. CARGA Y PREPARACIÓN DE DATOS (BIG DATA) ---
 @st.cache_data
 def load_data():
-    """Carga el dataset de Netflix desde el repositorio."""
     try:
-        df = pd.read_csv("utils/netflix_titles.csv")
+        df = pd.read_csv("utils/netflix_titles.csv", encoding='latin1')
+        # Limpieza básica: Rellenar nulos para que el Agente no se confunda
+        df['director'] = df['director'].fillna('No especificado')
+        df['cast'] = df['cast'].fillna('No disponible')
+        df['country'] = df['country'].fillna('Global')
         return df
-    except FileNotFoundError:
-        st.error("❌ Archivo 'netflix_titles.csv' no encontrado en el repositorio.")
+    except Exception as e:
+        st.error(f"Error al cargar datos: {e}")
         return pd.DataFrame()
 
 df_netflix = load_data()
